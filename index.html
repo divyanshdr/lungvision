@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LungVision - dIVYANSH_dr</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tensorflow/4.2.0/tf.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #f5f5f5;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .video-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+        
+        .video-background video {
+            min-width: 100%;
+            min-height: 100%;
+            width: auto;
+            height: auto;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            object-fit: cover;
+        }
+        
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(16, 24, 32, 0.85);
+            z-index: -1;
+        }
+        
+        .page-wrapper {
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px 15px;
+        }
+        
+        h1 {
+            color: #fff;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        @media (min-width: 768px) {
+            h1 {
+                font-size: 2.5rem;
+                margin-bottom: 30px;
+            }
+            
+            .page-wrapper {
+                padding: 40px 20px;
+            }
+        }
+        
+        .container {
+            background-color: rgba(30, 40, 50, 0.75);
+            border-radius: 12px;
+            padding: 20px 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        @media (min-width: 768px) {
+            .container {
+                padding: 30px;
+            }
+        }
+        
+        .file-input-container {
+            position: relative;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .file-input-label {
+            display: inline-block;
+            width: 100%;
+            max-width: 280px;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #3498db, #1abc9c);
+            color: white;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(26, 188, 156, 0.3);
+            font-size: 0.9rem;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        @media (min-width: 768px) {
+            .file-input-label {
+                padding: 14px 24px;
+                font-size: 1rem;
+            }
+        }
+        
+        .file-input-label:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(26, 188, 156, 0.4);
+        }
+        
+        #fileInput {
+            position: absolute;
+            left: -9999px;
+        }
+        
+        .image-container {
+            text-align: center;
+            margin: 20px 0;
+            min-height: 200px;
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        @media (min-width: 768px) {
+            .image-container {
+                min-height: 256px;
+                padding: 20px;
+                margin: 25px 0;
+            }
+        }
+        
+        .image-container.has-image {
+            border-color: rgba(52, 152, 219, 0.5);
+            background-color: rgba(52, 152, 219, 0.1);
+        }
+        
+        #preview {
+            max-width: 100%;
+            max-height: 250px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            display: none;
+        }
+        
+        @media (min-width: 768px) {
+            #preview {
+                max-height: 300px;
+            }
+        }
+        
+        #canvas {
+            display: none;
+        }
+        
+        .button-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        button {
+            width: 100%;
+            max-width: 280px;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+        }
+        
+        @media (min-width: 768px) {
+            button {
+                padding: 14px 30px;
+                font-size: 1rem;
+            }
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(39, 174, 96, 0.4);
+        }
+        
+        button:disabled {
+            background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+            transform: none;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+        
+        .result-container {
+            margin-top: 25px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 20px;
+        }
+        
+        #result {
+            text-align: center;
+            font-size: 1rem;
+            margin-top: 15px;
+            font-weight: 500;
+            color: #fff;
+            word-wrap: break-word;
+        }
+        
+        @media (min-width: 768px) {
+            #result {
+                font-size: 1.25rem;
+            }
+        }
+        
+        .loading {
+            text-align: center;
+            margin: 20px 0;
+            color: #bdc3c7;
+            font-size: 0.9rem;
+        }
+        
+        @media (min-width: 768px) {
+            .loading {
+                margin: 25px 0;
+                font-size: 1rem;
+            }
+        }
+        
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-left-color: #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 12px;
+            display: inline-block;
+        }
+        
+        @media (min-width: 768px) {
+            .spinner {
+                width: 36px;
+                height: 36px;
+                margin: 0 auto 15px;
+            }
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .disease-description {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left: 4px solid #3498db;
+            line-height: 1.5;
+            font-size: 0.9rem;
+        }
+        
+        @media (min-width: 768px) {
+            .disease-description {
+                line-height: 1.6;
+                font-size: 1rem;
+            }
+        }
+        
+        .error-message {
+            color: #e74c3c;
+            text-align: center;
+            margin: 10px 0;
+            font-size: 0.9rem;
+        }
+        
+        .findings-container {
+            margin-top: 20px;
+        }
+        
+        .finding-item {
+            display: flex;
+            flex-direction: column;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        @media (min-width: 768px) {
+            .finding-item {
+                flex-direction: row;
+                justify-content: space-between;
+            }
+        }
+        
+        .finding-name {
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+        
+        @media (min-width: 768px) {
+            .finding-name {
+                margin-bottom: 0;
+            }
+        }
+        
+        .finding-probability {
+            width: 100%;
+        }
+        
+        @media (min-width: 768px) {
+            .finding-probability {
+                width: 60%;
+            }
+        }
+        
+        .probability-bar {
+            height: 12px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        @media (min-width: 768px) {
+            .probability-bar {
+                height: 14px;
+                border-radius: 7px;
+            }
+        }
+        
+        .probability-level {
+            height: 100%;
+            border-radius: 6px;
+            width: 0%;
+        }
+        
+        @media (min-width: 768px) {
+            .probability-level {
+                border-radius: 7px;
+            }
+        }
+        
+        .probability-text {
+            text-align: right;
+            font-size: 11px;
+            color: #bdc3c7;
+            margin-top: 2px;
+        }
+        
+        @media (min-width: 768px) {
+            .probability-text {
+                font-size: 12px;
+                margin-top: 3px;
+            }
+        }
+        
+        h3, h4 {
+            color: #fff;
+            margin-bottom: 12px;
+            font-weight: 500;
+            font-size: 1.1rem;
+        }
+        
+        @media (min-width: 768px) {
+            h3, h4 {
+                margin-bottom: 15px;
+                font-size: 1.25rem;
+            }
+        }
+        
+        .pulsating-glow {
+            animation: pulsate 2s infinite;
+        }
+        
+        @keyframes pulsate {
+            0% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(52, 152, 219, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0); }
+        }
+        
+        .disclaimer {
+            font-size: 11px;
+            color: #bdc3c7;
+            margin-top: 20px;
+            text-align: center;
+            font-style: italic;
+        }
+        
+        @media (min-width: 768px) {
+            .disclaimer {
+                font-size: 12px;
+                margin-top: 25px;
+            }
+        }
+        
+        /* Animated background for loading */
+        .loading-bg {
+            background: linear-gradient(270deg, #1a2a3a, #2c3e50);
+            background-size: 400% 400%;
+            animation: gradientBG 3s ease infinite;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        @media (min-width: 768px) {
+            .loading-bg {
+                padding: 20px;
+            }
+        }
+        
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        /* Mobile specific optimizations */
+        #fileInputLabel {
+            display: block;
+            width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Video Background -->
+    <div class="video-background">
+        <video autoplay loop muted playsinline>
+            <source src="13201661_3840_2160_24fps.mp4" type="video/mp4">
+        </video>
+    </div>
+    <div class="overlay"></div>
+    
+    <div class="page-wrapper">
+        <div class="container">
+            <h1>LungVision - dIVYANSH_dr</h1>
+            
+            <div id="modelLoading" class="loading loading-bg">
+                <div class="spinner"></div>
+                <p>Initializing AI model, please wait...</p>
+            </div>
+            
+            <div id="mainContent" style="display:none;">
+                <div class="file-input-container">
+                    <label for="fileInput" class="file-input-label pulsating-glow">
+                        <span id="fileInputLabel">Upload X-ray Image</span>
+                    </label>
+                    <input type="file" id="fileInput" accept="image/*" capture="environment">
+                </div>
+                
+                <div class="image-container" id="imageContainer">
+                    <canvas id="canvas"></canvas>
+                    <img id="preview" alt="Uploaded X-ray">
+                    <p id="imageErrorMsg" class="error-message"></p>
+                </div>
+                
+                <div class="button-container">
+                    <button id="predictBtn" onclick="predict()" disabled>Analyze X-ray Image</button>
+                </div>
+                
+                <div id="loadingPrediction" class="loading loading-bg" style="display:none;">
+                    <div class="spinner"></div>
+                    <p>AI analyzing image. Processing medical data...</p>
+                </div>
+                
+                <div class="result-container" id="resultContainer" style="display:none;">
+                    <h3>Analysis Results</h3>
+                    <p id="result"></p>
+                    
+                    <div class="findings-container" id="findingsContainer">
+                        <h4>Detected Findings</h4>
+                        <!-- Finding items will be added here dynamically -->
+                    </div>
+                    
+                    <div class="disease-description" id="diseaseDescription"></div>
+                    
+                    <p class="disclaimer">
+                        This is a demonstration tool only. Results should be verified by healthcare professionals.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Updated disease classes based on the provided list
+        const diseaseClasses = [
+            "No Finding",
+            "Enlarged Cardiomediastinum",
+            "Cardiomegaly",
+            "Lung Opacity",
+            "Lung Lesion",
+            "Edema",
+            "Consolidation",
+            "Pneumonia",
+            "Atelectasis",
+            "Pneumothorax",
+            "Pleural Effusion",
+            "Pleural Other",
+            "Fracture",
+            "Support Devices"
+        ];
+        
+        // Disease descriptions with medical information
+        const diseaseDescriptions = {
+            "No Finding": "No abnormalities detected in the chest X-ray.",
+            "Enlarged Cardiomediastinum": "Widening of the mediastinum (the area in the chest between the lungs). This may indicate various conditions including lymphadenopathy, aortic abnormalities, or masses.",
+            "Cardiomegaly": "Enlargement of the heart. This may be due to heart failure, valve problems, hypertension, cardiomyopathy, or other cardiac conditions.",
+            "Lung Opacity": "Areas of increased density in the lung tissue that may represent infection, fluid, or solid tissue. Common causes include pneumonia, edema, hemorrhage, or tumor.",
+            "Lung Lesion": "A localized abnormality in the lung, which could represent a mass, nodule, or other focal abnormality. This may require further investigation to rule out malignancy.",
+            "Edema": "Accumulation of fluid in the lungs, often due to heart failure, renal failure, or other conditions causing fluid overload. Appears as increased opacity in a perihilar distribution.",
+            "Consolidation": "Alveolar air spaces filled with fluid or cells, typically presenting as a dense opacity. Common in pneumonia, aspiration, hemorrhage, or tumor.",
+            "Pneumonia": "Infection of the lung parenchyma, typically presenting as consolidation. Can be caused by bacteria, viruses, fungi, or other microorganisms.",
+            "Atelectasis": "Collapse of lung tissue affecting part or all of a lung. May be caused by airway obstruction, external compression, or surfactant dysfunction.",
+            "Pneumothorax": "Presence of air in the pleural space leading to lung collapse. Can be spontaneous, traumatic, or iatrogenic in origin.",
+            "Pleural Effusion": "Accumulation of fluid in the pleural space between the lung and chest wall. May represent transudative or exudative processes.",
+            "Pleural Other": "Other pleural abnormalities such as pleural thickening, pleural plaques, or pleural masses that don't fit other categories.",
+            "Fracture": "Break in the continuity of bone, typically involving ribs, clavicles, or vertebrae in chest X-rays. May be due to trauma, pathological conditions, or stress injuries.",
+            "Support Devices": "Medical devices visible on X-ray such as endotracheal tubes, central venous catheters, chest tubes, pacemakers, or other monitoring/therapeutic equipment."
+        };
+        
+        let model;
+        let isModelLoaded = false;
+        let hasImage = false;
+        
+        // Load the TensorFlow.js model
+        async function loadModel() {
+            try {
+                // Add a small delay on mobile to ensure UI renders properly first
+                if (window.innerWidth < 768) {
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+                
+                model = await tf.loadLayersModel('model_tfjs/model.json');
+                console.log("✅ Model Loaded Successfully");
+                isModelLoaded = true;
+                document.getElementById('modelLoading').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+            } catch (error) {
+                console.error("❌ Error loading model:", error);
+                document.getElementById('modelLoading').innerHTML = 
+                    `<p class="error-message">Error loading model: ${error.message}. Please refresh the page to try again.</p>`;
+            }
+        }
+        
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            loadModel();
+            
+            // Check if it's a mobile device
+            const isMobile = window.innerWidth < 768;
+            
+            // Update button state
+            function updateButtonState() {
+                const predictBtn = document.getElementById('predictBtn');
+                predictBtn.disabled = !(isModelLoaded && hasImage);
+            }
+            
+            // Handle Image Upload
+            document.getElementById('fileInput').addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                // Update the file input label
+                const fileLabel = document.getElementById('fileInputLabel');
+                // Truncate long filenames on mobile
+                if (isMobile && file.name.length > 20) {
+                    fileLabel.textContent = file.name.substring(0, 17) + '...';
+                } else {
+                    fileLabel.textContent = file.name;
+                }
+                
+                // Remove pulsating effect after file selected
+                document.querySelector('.file-input-label').classList.remove('pulsating-glow');
+                
+                // Clear previous results
+                document.getElementById('resultContainer').style.display = 'none';
+                document.getElementById('imageErrorMsg').textContent = '';
+                
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = new Image();
+                    img.onload = function() {
+                        // Show image preview
+                        const preview = document.getElementById('preview');
+                        preview.src = img.src;
+                        preview.style.display = 'inline-block';
+                        
+                        // Change image container style when image is loaded
+                        document.getElementById('imageContainer').classList.add('has-image');
+                        
+                        // Prepare canvas for prediction
+                        const canvas = document.getElementById('canvas');
+                        const ctx = canvas.getContext('2d');
+                        canvas.width = 128;
+                        canvas.height = 128;
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        
+                        hasImage = true;
+                        updateButtonState();
+                    };
+                    
+                    img.onerror = function() {
+                        document.getElementById('imageErrorMsg').textContent = 'Invalid image file. Please upload a valid X-ray image.';
+                        hasImage = false;
+                        updateButtonState();
+                    };
+                    
+                    img.src = event.target.result;
+                };
+                
+                reader.onerror = function() {
+                    document.getElementById('imageErrorMsg').textContent = 'Error reading file. Please try again.';
+                    hasImage = false;
+                    updateButtonState();
+                };
+                
+                reader.readAsDataURL(file);
+            });
+            
+            // Handle orientation change for better mobile experience
+            window.addEventListener('orientationchange', function() {
+                setTimeout(function() {
+                    // Adjust elements after orientation change
+                    const preview = document.getElementById('preview');
+                    if (preview && preview.style.display !== 'none') {
+                        // Force layout recalculation
+                        preview.style.display = 'none';
+                        setTimeout(() => {
+                            preview.style.display = 'inline-block';
+                        }, 50);
+                    }
+                }, 300);
+            });
+        });
+        
+        // Run Model Prediction
+        async function predict() {
+            if (!isModelLoaded) {
+                alert("Model is not loaded yet. Please wait...");
+                return;
+            }
+            
+            if (!hasImage) {
+                alert("Please upload an X-ray image first.");
+                return;
+            }
+            
+            try {
+                // Show loading indicator
+                document.getElementById('loadingPrediction').style.display = 'block';
+                document.getElementById('predictBtn').disabled = true;
+                document.getElementById('resultContainer').style.display = 'none';
+                
+                // Optimize for mobile - reduce memory usage
+                const isMobile = window.innerWidth < 768;
+                if (isMobile) {
+                    // Garbage collect before heavy computation
+                    if (typeof window.gc === 'function') {
+                        window.gc();
+                    } else {
+                        console.log("Manual memory management not available");
+                    }
+                }
+                
+                // Use tf.tidy to automatically dispose tensors when done
+                const result = await tf.tidy(() => {
+                    const canvas = document.getElementById('canvas');
+                    const imageTensor = tf.browser.fromPixels(canvas)
+                        .resizeNearestNeighbor([128, 128])
+                        .toFloat()
+                        .div(tf.scalar(255))
+                        .expandDims();
+                    
+                    // Run prediction
+                    return model.predict(imageTensor);
+                });
+                
+                // Get prediction data
+                const predictionData = await result.data();
+                result.dispose(); // Clean up the tensor
+                
+                // Find the class with highest confidence
+                const maxIndex = predictionData.indexOf(Math.max(...predictionData));
+                const maxConfidence = predictionData[maxIndex] * 100;
+                
+                // Display primary result
+                document.getElementById('result').innerText = 
+                    `Primary Finding: ${diseaseClasses[maxIndex]} (${maxConfidence.toFixed(1)}% confidence)`;
+                
+                // Clear previous findings
+                const findingsContainer = document.getElementById('findingsContainer');
+                findingsContainer.innerHTML = '<h4>Detected Findings</h4>';
+                
+                // Sort findings by probability
+                const findingsWithProbability = diseaseClasses.map((disease, index) => {
+                    return {
+                        name: disease,
+                        probability: predictionData[index] * 100
+                    };
+                }).sort((a, b) => b.probability - a.probability);
+                
+                // Create probability bars for each finding
+                findingsWithProbability.forEach(finding => {
+                    if (finding.probability > 5) { // Only show findings with >5% probability
+                        const findingItem = document.createElement('div');
+                        findingItem.className = 'finding-item';
+                        
+                        const nameSpan = document.createElement('span');
+                        nameSpan.className = 'finding-name';
+                        nameSpan.textContent = finding.name;
+                        
+                        const probabilityDiv = document.createElement('div');
+                        probabilityDiv.className = 'finding-probability';
+                        
+                        const barDiv = document.createElement('div');
+                        barDiv.className = 'probability-bar';
+                        
+                        const levelDiv = document.createElement('div');
+                        levelDiv.className = 'probability-level';
+                        levelDiv.style.width = `${finding.probability}%`;
+                        levelDiv.style.backgroundColor = getColorForProbability(finding.probability);
+                        
+                        const textDiv = document.createElement('div');
+                        textDiv.className = 'probability-text';
+                        textDiv.textContent = `${finding.probability.toFixed(1)}%`;
+                        
+                        barDiv.appendChild(levelDiv);
+                        probabilityDiv.appendChild(barDiv);
+                        probabilityDiv.appendChild(textDiv);
+                        
+                        findingItem.appendChild(nameSpan);
+                        findingItem.appendChild(probabilityDiv);
+                        
+                        findingsContainer.appendChild(findingItem);
+                    }
+                });
+                
+                // Display disease description for primary finding
+                const description = diseaseDescriptions[diseaseClasses[maxIndex]] || 
+                    "No additional information available for this finding.";
+                document.getElementById('diseaseDescription').innerText = description;
+                
+                // Show results with a slight delay for visual effect
+                setTimeout(() => {
+                    document.getElementById('resultContainer').style.display = 'block';
+                    
+                    // Scroll to results on mobile
+                    if (window.innerWidth < 768) {
+                        document.getElementById('resultContainer').scrollIntoView({ 
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }
+                }, 300);
+            } catch (error) {
+                console.error("Error during prediction:", error);
+                document.getElementById('result').innerText = 
+                    `Error during analysis: ${error.message}. Please try again.`;
+                document.getElementById('resultContainer').style.display = 'block';
+            } finally {
+                // Hide loading indicator
+                document.getElementById('loadingPrediction').style.display = 'none';
+                document.getElementById('predictBtn').disabled = false;
+            }
+        }
+        
+        // Helper function to get color based on probability
+        function getColorForProbability(probability) {
+            if (probability > 80) return '#e74c3c'; // High - red
+            if (probability > 50) return '#f39c12'; // Medium - orange
+            if (probability > 20) return '#3498db'; // Low-medium - blue
+            return '#2ecc71'; // Low - green
+        }
+        
+        // Handle memory cleanup when navigating away
+        window.addEventListener('beforeunload', function() {
+            if (model) {
+                model.dispose();
+            }
+            tf.disposeVariables();
+        });
+    </script>
+</body>
+</html>
